@@ -29,20 +29,39 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
 import backtype.storm.utils.Utils;
+import backtype.storm.task.ShellBolt;
+import backtype.storm.topology.IRichBolt;
+import backtype.storm.drpc.DRPCSpout;
+import backtype.storm.topology.TopologyBuilder;
+import backtype.storm.drpc.ReturnResults;
+import java.util.Map;
 
-/**
- * This topology is a basic example of doing distributed RPC on top of Storm. It implements a function that appends a
- * "!" to any string you send the DRPC function.
- * <p/>
- * See https://github.com/nathanmarz/storm/wiki/Distributed-RPC for more information on doing distributed RPC on top of
- * Storm.
- */
-public class BasicDRPCTopology {
-  public static class ExclaimBolt extends BaseBasicBolt {
+public class CognitiveDRPCTopology {
+  public static class Cognitive extends ShellBolt implements IRichBolt {
+
+    public Cognitive() {
+        super("python","mlearning.py");
+    }
+
+    @Override
+    public void declareOutputFields(OutputFieldsDeclarer declarer) {
+      declarer.declare(new Fields("id", "result"));
+      //declarer.declare(new Fields("word"));
+    }
+
+    @Override
+    public Map<String, Object> getComponentConfiguration() {
+      return null;
+    }
+
+  }
+
+   public static class DRPCReturnBolt extends BaseBasicBolt {
     @Override
     public void execute(Tuple tuple, BasicOutputCollector collector) {
       String input = tuple.getString(1);
-      collector.emit(new Values(tuple.getValue(0), input + "!"));
+      //collector.emit(new Values(tuple.getValue(0),input));
+      collector.emit(tuple.getValues());
     }
 
     @Override
@@ -51,24 +70,31 @@ public class BasicDRPCTopology {
     }
 
   }
+ 
 
   public static void main(String[] args) throws Exception {
-    LinearDRPCTopologyBuilder builder = new LinearDRPCTopologyBuilder("exclamation");
-    builder.addBolt(new ExclaimBolt(), 3);
+    LinearDRPCTopologyBuilder builder = new LinearDRPCTopologyBuilder("cognitive");
+    //TopologyBuilder builder = new TopologyBuilder();
+    LocalDRPC drpc = new LocalDRPC();
+    //DRPCSpout drpcSpout = new DRPCSpout("cognitive", drpc);
+    //builder.setSpout("drpc-input", drpcSpout);
+
+    builder.addBolt(new Cognitive(), 3);
+    //builder.addBolt(new DRPCReturnBolt(), 3);
+    //builder.addBolt(new ReturnResults(), 3);
 
     Config conf = new Config();
     conf.setDebug(true);
 
     if (args == null || args.length == 0) {
-      LocalDRPC drpc = new LocalDRPC();
       LocalCluster cluster = new LocalCluster();
 
-      cluster.submitTopology("drpc-demo", conf, builder.createLocalTopology(drpc));
+      cluster.submitTopology("cognitive", conf, builder.createLocalTopology(drpc));
 
       for (String word : new String[]{ "hello", "goodbye" }) {
-        System.out.println("Result for \"" + word + "\": " + drpc.execute("exclamation", word));
+        System.out.println("Result for \"" + word + "\": " + drpc.execute("cognitive", word));
       }
-
+      Thread.sleep(10000);
       cluster.shutdown();
       drpc.shutdown();
     }
