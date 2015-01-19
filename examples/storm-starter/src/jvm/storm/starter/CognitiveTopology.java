@@ -39,15 +39,15 @@ import java.util.Map;
  * This topology demonstrates Storm's stream groupings and multilang capabilities.
  */
 public class CognitiveTopology {
-  public static class SplitSentence extends ShellBolt implements IRichBolt {
+  public static class CognitiveBolt extends ShellBolt implements IRichBolt {
 
-    public SplitSentence() {
+    public CognitiveBolt() {
       super("python", "cognitive.py");
     }
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-      declarer.declare(new Fields("word"));
+      declarer.declare(new Fields("cogresult"));
     }
 
     @Override
@@ -55,6 +55,24 @@ public class CognitiveTopology {
       return null;
     }
   }
+
+  public static class ResultBolt extends ShellBolt implements IRichBolt {
+
+    public ResultBolt() {
+      super("python", "cogresult.py");
+    }
+
+    @Override
+    public void declareOutputFields(OutputFieldsDeclarer declarer) {
+//      declarer.declare(new Fields("result"));
+    }
+
+    @Override
+    public Map<String, Object> getComponentConfiguration() {
+      return null;
+    }
+  }
+
 
   public static class WordCount extends BaseBasicBolt {
     Map<String, Integer> counts = new HashMap<String, Integer>();
@@ -83,8 +101,8 @@ public class CognitiveTopology {
     String host = fileConf.get("redis.server.host").toString();
     int port =  new Integer(fileConf.get("redis.server.port").toString());
     builder.setSpout("redis", new RedisSpout(host,port,"workflow"));
-    builder.setBolt("split", new SplitSentence(), 8).shuffleGrouping("redis");
-    builder.setBolt("count", new WordCount(), 12).fieldsGrouping("split", new Fields("word"));
+    builder.setBolt("cognitive", new CognitiveBolt(), 8).shuffleGrouping("redis");
+    builder.setBolt("result", new ResultBolt(), 8).shuffleGrouping("cognitive");
 
 
     Config conf = new Config();
@@ -102,7 +120,7 @@ public class CognitiveTopology {
       LocalCluster cluster = new LocalCluster();
       cluster.submitTopology("cognitive", conf, builder.createTopology());
 
-      Thread.sleep(100000);
+      Thread.sleep(300000);
       cluster.killTopology("cognitive");
       cluster.shutdown();
     }

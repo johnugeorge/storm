@@ -6,7 +6,7 @@ import json
 class CognitiveBolt(storm.BasicBolt):
     def process(self, tup):
         message = json.loads(tup.values[0])
-        result = {}
+        result = {"exp_id":message['exp_id']}
         max_results = 10
         input_data = DataFrame
         feature_names = None
