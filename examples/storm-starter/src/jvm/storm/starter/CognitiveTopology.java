@@ -103,7 +103,7 @@ public class CognitiveTopology {
       LocalCluster cluster = new LocalCluster();
       cluster.submitTopology("cognitive", conf, builder.createTopology());
 
-      Thread.sleep(300000);
+      Thread.sleep(900000);
       cluster.killTopology("cognitive");
       cluster.shutdown();
     }
